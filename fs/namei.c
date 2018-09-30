@@ -2273,28 +2273,10 @@ static struct file *do_last(struct nameidata *nd, struct path *path,
 	nd->flags &= ~LOOKUP_PARENT;
 	nd->flags |= op->intent;
 
-	switch (nd->last_type) {
-	case LAST_DOTDOT:
-	case LAST_DOT:
+	if (nd->last_type != LAST_NORM) {
 		error = handle_dots(nd, nd->last_type);
 		if (error)
 			return ERR_PTR(error);
-		/* fallthrough */
-	case LAST_ROOT:
-		error = complete_walk(nd);
-		if (error)
-			return ERR_PTR(error);
-		audit_inode(pathname, nd->path.dentry);
-		if (open_flag & O_CREAT) {
-			error = -EISDIR;
-			goto exit;
-		}
-		goto ok;
-	case LAST_BIND:
-		error = complete_walk(nd);
-		if (error)
-			return ERR_PTR(error);
-		audit_inode(pathname, dir);
 		goto ok;
 	}
 
@@ -2411,9 +2393,11 @@ static struct file *do_last(struct nameidata *nd, struct path *path,
 	path_to_nameidata(path, nd);
 	nd->inode = path->dentry->d_inode;
 	/* Why this, you ask?  _Now_ we might have grown LOOKUP_JUMPED... */
+finish_open:
 	error = complete_walk(nd);
 	if (error)
 		return ERR_PTR(error);
+	audit_inode(name, nd->path.dentry, 0);
 	error = -EISDIR;
 	if (S_ISDIR(nd->inode->i_mode))
 		goto exit;
